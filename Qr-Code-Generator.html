@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beautiful QR Code Generator</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #8BC6EC 0%, #9599E2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            width: 100%;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .qr-sections {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            justify-content: center;
+        }
+        
+        .qr-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .qr-section:hover {
+            transform: translateY(-5px);
+        }
+        
+        .qr-section h2 {
+            color: #5d6bf8;
+            margin-bottom: 20px;
+            font-size: 1.6rem;
+            position: relative;
+            padding-bottom: 10px;
+        }
+        
+        .qr-section h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 60px;
+            height: 3px;
+            background: linear-gradient(90deg, #5d6bf8, #8BC6EC);
+            border-radius: 3px;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #444;
+            font-weight: 500;
+        }
+        
+        .input-group input, 
+        .input-group textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        
+        .input-group input:focus,
+        .input-group textarea:focus {
+            border-color: #5d6bf8;
+            outline: none;
+        }
+        
+        .input-group textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        
+        .btn {
+            background: linear-gradient(90deg, #5d6bf8, #8BC6EC);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+        }
+        
+        .btn i {
+            font-size: 1.1rem;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .qr-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 30px;
+        }
+        
+        .qr-placeholder {
+            width: 200px;
+            height: 200px;
+            background-color: #f8f8f8;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #aaa;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+        
+        .qr-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            display: none;
+        }
+        
+        .color-options {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .color-option {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s;
+        }
+        
+        .color-option:hover {
+            transform: scale(1.1);
+        }
+        
+        .color-option.selected {
+            border-color: #333;
+            transform: scale(1.1);
+        }
+        
+        @media (max-width: 768px) {
+            .qr-section {
+                max-width: 100%;
+            }
+            
+            header h1 {
+                font-size: 2rem;
+            }
+        }
+        
+        footer {
+            margin-top: 40px;
+            text-align: center;
+            color: #fff;
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Beautiful QR Code Generator</h1>
+            <p>Create colorful QR codes for links and text with easy download option</p>
+        </header>
+        
+        <div class="qr-sections">
+            <!-- Link QR Section -->
+            <div class="qr-section">
+                <h2>Generate QR from Link</h2>
+                
+                <div class="input-group">
+                    <label for="link-input">Enter URL</label>
+                    <input type="url" id="link-input" placeholder="https://example.com" required>
+                </div>
+                
+                <div class="input-group">
+                    <label>Choose QR Color</label>
+                    <div class="color-options" id="link-colors">
+                        <div class="color-option selected" style="background-color: #000000;" data-color="#000000"></div>
+                        <div class="color-option" style="background-color: #5d6bf8;" data-color="#5d6bf8"></div>
+                        <div class="color-option" style="background-color: #ff4757;" data-color="#ff4757"></div>
+                        <div class="color-option" style="background-color: #20bf6b;" data-color="#20bf6b"></div>
+                        <div class="color-option" style="background-color: #f7b731;" data-color="#f7b731"></div>
+                        <div class="color-option" style="background-color: #8854d0;" data-color="#8854d0"></div>
+                    </div>
+                </div>
+                
+                <button class="btn" id="generate-link-qr">
+                    <i class="fas fa-qrcode"></i> Generate QR Code
+                </button>
+                
+                <div class="qr-display">
+                    <div class="qr-placeholder" id="link-qr-placeholder">
+                        Your QR code will appear here
+                    </div>
+                    <img id="link-qr-image" class="qr-image" alt="QR Code">
+                    
+                    <div class="btn-group" style="display: none;" id="link-btn-group">
+                        <button class="btn" id="download-link-qr">
+                            <i class="fas fa-download"></i> Download PNG
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Text QR Section -->
+            <div class="qr-section">
+                <h2>Generate QR from Text</h2>
+                
+                <div class="input-group">
+                    <label for="text-input">Enter Text</label>
+                    <textarea id="text-input" placeholder="Enter your text here..." required></textarea>
+                </div>
+                
+                <div class="input-group">
+                    <label>Choose QR Color</label>
+                    <div class="color-options" id="text-colors">
+                        <div class="color-option selected" style="background-color: #000000;" data-color="#000000"></div>
+                        <div class="color-option" style="background-color: #5d6bf8;" data-color="#5d6bf8"></div>
+                        <div class="color-option" style="background-color: #ff4757;" data-color="#ff4757"></div>
+                        <div class="color-option" style="background-color: #20bf6b;" data-color="#20bf6b"></div>
+                        <div class="color-option" style="background-color: #f7b731;" data-color="#f7b731"></div>
+                        <div class="color-option" style="background-color: #8854d0;" data-color="#8854d0"></div>
+                    </div>
+                </div>
+                
+                <button class="btn" id="generate-text-qr">
+                    <i class="fas fa-qrcode"></i> Generate QR Code
+                </button>
+                
+                <div class="qr-display">
+                    <div class="qr-placeholder" id="text-qr-placeholder">
+                        Your QR code will appear here
+                    </div>
+                    <img id="text-qr-image" class="qr-image" alt="QR Code">
+                    
+                    <div class="btn-group" style="display: none;" id="text-btn-group">
+                        <button class="btn" id="download-text-qr">
+                            <i class="fas fa-download"></i> Download PNG
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Created with ❤️ | Beautiful QR Code Generator &copy; 2025</p>
+        </footer>
+    </div>
+    
+    <!-- QR Code Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Color selection functionality
+            function setupColorSelection(containerId) {
+                const container = document.getElementById(containerId);
+                const options = container.querySelectorAll('.color-option');
+                
+                options.forEach(option => {
+                    option.addEventListener('click', function() {
+                        // Remove selected class from all options
+                        options.forEach(opt => opt.classList.remove('selected'));
+                        // Add selected class to clicked option
+                        this.classList.add('selected');
+                    });
+                });
+            }
+            
+            setupColorSelection('link-colors');
+            setupColorSelection('text-colors');
+            
+            // Link QR Code Generation
+            document.getElementById('generate-link-qr').addEventListener('click', function() {
+                const linkInput = document.getElementById('link-input').value.trim();
+                if (!linkInput) {
+                    alert('Please enter a valid URL');
+                    return;
+                }
+                
+                const colorOption = document.querySelector('#link-colors .color-option.selected');
+                const color = colorOption ? colorOption.dataset.color : '#000000';
+                
+                generateQRCode('link-qr-image', 'link-qr-placeholder', 'link-btn-group', linkInput, color);
+            });
+            
+            // Text QR Code Generation
+            document.getElementById('generate-text-qr').addEventListener('click', function() {
+                const textInput = document.getElementById('text-input').value.trim();
+                if (!textInput) {
+                    alert('Please enter some text');
+                    return;
+                }
+                
+                const colorOption = document.querySelector('#text-colors .color-option.selected');
+                const color = colorOption ? colorOption.dataset.color : '#000000';
+                
+                generateQRCode('text-qr-image', 'text-qr-placeholder', 'text-btn-group', textInput, color);
+            });
+            
+            // Generate QR Code Function
+            function generateQRCode(imageId, placeholderId, btnGroupId, text, color) {
+                const qrImage = document.getElementById(imageId);
+                const placeholder = document.getElementById(placeholderId);
+                const btnGroup = document.getElementById(btnGroupId);
+                
+                // Clear previous QR code
+                qrImage.src = '';
+                qrImage.style.display = 'none';
+                placeholder.style.display = 'flex';
+                placeholder.textContent = 'Generating QR code...';
+                
+                // Create QR Code element
+                const qrContainer = document.createElement('div');
+                qrContainer.id = 'temp-qr-container';
+                document.body.appendChild(qrContainer);
+                
+                // Generate QR code
+                new QRCode(qrContainer, {
+                    text: text,
+                    width: 200,
+                    height: 200,
+                    colorDark: color,
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+                
+                // Get generated QR code as image
+                setTimeout(() => {
+                    const qrCanvas = qrContainer.querySelector('canvas');
+                    if (qrCanvas) {
+                        qrImage.src = qrCanvas.toDataURL('image/png');
+                        qrImage.style.display = 'block';
+                        placeholder.style.display = 'none';
+                        btnGroup.style.display = 'flex';
+                    } else {
+                        placeholder.textContent = 'Failed to generate QR code';
+                    }
+                    
+                    // Clean up temporary container
+                    document.body.removeChild(qrContainer);
+                }, 100);
+            }
+            
+            // Download QR code as PNG
+            document.getElementById('download-link-qr').addEventListener('click', function() {
+                downloadQRCode('link-qr-image', 'link-qr-code.png');
+            });
+            
+            document.getElementById('download-text-qr').addEventListener('click', function() {
+                downloadQRCode('text-qr-image', 'text-qr-code.png');
+            });
+            
+            // Download QR code function
+            function downloadQRCode(imageId, fileName) {
+                const qrImage = document.getElementById(imageId);
+                if (!qrImage.src) return;
+                
+                const link = document.createElement('a');
+                link.href = qrImage.src;
+                link.download = fileName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        });
+    </script>
+</body>
+</html>

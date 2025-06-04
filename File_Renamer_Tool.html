@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced File Renamer Tool</title>
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3f37c9;
+            --accent-color: #4cc9f0;
+            --success-color: #4ade80;
+            --warning-color: #fbbf24;
+            --danger-color: #f87171;
+            --light-color: #f9fafb;
+            --dark-color: #1f2937;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f5ff;
+            color: var(--dark-color);
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(67, 97, 238, 0.15);
+            padding: 30px;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+            position: relative;
+            display: inline-block;
+        }
+        
+        h1::after {
+            content: '';
+            position: absolute;
+            width: 60%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+            bottom: -8px;
+            left: 20%;
+            border-radius: 2px;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 1.1rem;
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #6b7280;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .tab.active {
+            color: var(--primary-color);
+            border-bottom: 3px solid var(--primary-color);
+        }
+        
+        .tab:hover:not(.active) {
+            color: var(--secondary-color);
+            border-bottom: 3px solid #e5e7eb;
+        }
+        
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+        
+        .file-selector {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .file-input {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .file-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background-color: white;
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .file-button:hover {
+            background-color: var(--primary-color);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(67, 97, 238, 0.2);
+        }
+        
+        .file-button i {
+            font-size: 1.2rem;
+        }
+        
+        .file-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+        
+        .file-table th, .file-table td {
+            border: 1px solid #e5e7eb;
+            padding: 12px 16px;
+        }
+        
+        .file-table th {
+            background-color: var(--primary-color);
+            color: white;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        .file-table tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+        
+        .file-table tr:hover {
+            background-color: #eef2ff;
+        }
+        
+        .file-name-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        .file-name-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
+        }
+        
+        .button-container {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        
+        .button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .button:disabled {
+            background-color: #d1d5db;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+        
+        .button:hover:not(:disabled) {
+            background-color: var(--secondary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(67, 97, 238, 0.2);
+        }
+        
+        .button.success {
+            background-color: var(--success-color);
+        }
+        
+        .button.success:hover:not(:disabled) {
+            background-color: #3eca70;
+            box-shadow: 0 4px 12px rgba(78, 216, 110, 0.2);
+        }
+        
+        .button.warning {
+            background-color: var(--warning-color);
+        }
+        
+        .button.warning:hover:not(:disabled) {
+            background-color: #f59e0b;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+        }
+        
+        .no-files {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6b7280;
+            background-color: #f9fafb;
+            border-radius: 8px;
+            border: 2px dashed #d1d5db;
+        }
+        
+        .no-files i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: #9ca3af;
+        }
+        
+        .info {
+            margin-top: 10px;
+            color: #6b7280;
+            font-size: 14px;
+            padding-left: 10px;
+            border-left: 3px solid var(--primary-color);
+            background-color: #f9fafb;
+            padding: 10px;
+            border-radius: 0 6px 6px 0;
+        }
+        
+        .progress-bar-container {
+            width: 100%;
+            height: 8px;
+            background-color: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+        
+        .csv-preview {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+        
+        .notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        .notification.success {
+            background-color: var(--success-color);
+        }
+        
+        .notification.error {
+            background-color: var(--danger-color);
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #6b7280;
+            font-size: 14px;
+        }
+    </style>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Advanced File Renamer Tool</h1>
+            <p class="subtitle">Quickly rename multiple files with our beautiful and powerful tool</p>
+        </div>
+        
+        <div class="tabs">
+            <div class="tab active" data-tab="manual">Manual Rename</div>
+            <div class="tab" data-tab="csv">CSV Import</div>
+        </div>
+        
+        <!-- Manual Rename Tab -->
+        <div class="tab-content active" id="manual-tab">
+            <div class="file-selector">
+                <div class="file-input-wrapper">
+                    <div class="file-button">
+                        <i class="fas fa-folder-open"></i> Choose Folder
+                        <input type="file" id="folderInput" class="file-input" webkitdirectory directory multiple />
+                    </div>
+                </div>
+                <div class="file-input-wrapper">
+                    <div class="file-button">
+                        <i class="fas fa-file"></i> Choose Files
+                        <input type="file" id="fileInput" class="file-input" multiple />
+                    </div>
+                </div>
+                <div id="fileCount" class="info" style="display: none;">
+                    <i class="fas fa-info-circle"></i> <span id="fileCountText">0 files selected</span>
+                </div>
+            </div>
+
+            <div id="fileTableContainer">
+                <div class="no-files">
+                    <i class="fas fa-file-import"></i>
+                    <p>No files selected. Please select a folder or files first.</p>
+                </div>
+            </div>
+
+            <div class="button-container" id="manualButtons" style="display: none;">
+                <button id="downloadAllButton" class="button success">
+                    <i class="fas fa-download"></i> Download All Files
+                </button>
+                <button id="saveToFolderButton" class="button warning">
+                    <i class="fas fa-folder"></i> Save to Folder
+                </button>
+            </div>
+        </div>
+        
+        <!-- CSV Import Tab -->
+        <div class="tab-content" id="csv-tab">
+            <div class="input-group">
+                <div class="file-input-wrapper">
+                    <div class="file-button">
+                        <i class="fas fa-file-csv"></i> Choose CSV File
+                        <input type="file" id="csvInput" class="file-input" accept=".csv" />
+                    </div>
+                </div>
+                <p class="info">
+                    <i class="fas fa-info-circle"></i> CSV file should have two columns: "old_name" and "new_name"
+                </p>
+                <div id="csvPreview" class="csv-preview" style="display: none;"></div>
+            </div>
+            
+            <div class="file-selector">
+                <div class="file-input-wrapper">
+                    <div class="file-button">
+                        <i class="fas fa-folder-open"></i> Choose Source Folder
+                        <input type="file" id="csvFolderInput" class="file-input" webkitdirectory directory multiple />
+                    </div>
+                </div>
+                <div id="csvFileCount" class="info" style="display: none;">
+                    <i class="fas fa-info-circle"></i> <span id="csvFileCountText">0 files selected</span>
+                </div>
+            </div>
+            
+            <div id="csvFileTableContainer">
+                <div class="no-files">
+                    <i class="fas fa-file-import"></i>
+                    <p>Upload a CSV file and select a source folder first.</p>
+                </div>
+            </div>
+            
+            <div class="button-container" id="csvButtons" style="display: none;">
+                <button id="csvDownloadAllButton" class="button success">
+                    <i class="fas fa-download"></i> Download All Files
+                </button>
+                <button id="csvSaveToFolderButton" class="button warning">
+                    <i class="fas fa-folder"></i> Save to Folder
+                </button>
+            </div>
+        </div>
+        
+        <div id="progressContainer" style="display: none;">
+            <div class="progress-bar-container">
+                <div id="progressBar" class="progress-bar"></div>
+            </div>
+            <p id="progressText" style="text-align: center; margin-top: 10px;">Processing files: 0%</p>
+        </div>
+    </div>
+    
+    <div id="notification" class="notification">
+        <i class="fas fa-check-circle"></i>
+        <span id="notificationText">Files renamed successfully!</span>
+    </div>
+    
+    <div class="footer">
+        Advanced File Renamer Tool © 2025
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Tab switching
+            const tabs = document.querySelectorAll('.tab');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabId = tab.getAttribute('data-tab');
+                    
+                    // Update active tab
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    // Update active content
+                    tabContents.forEach(content => {
+                        content.classList.remove('active');
+                        if (content.id === `${tabId}-tab`) {
+                            content.classList.add('active');
+                        }
+                    });
+                });
+            });
+            
+            // Manual Rename Tab
+            const folderInput = document.getElementById('folderInput');
+            const fileInput = document.getElementById('fileInput');
+            const fileTableContainer = document.getElementById('fileTableContainer');
+            const fileCount = document.getElementById('fileCount');
+            const fileCountText = document.getElementById('fileCountText');
+            const manualButtons = document.getElementById('manualButtons');
+            const downloadAllButton = document.getElementById('downloadAllButton');
+            const saveToFolderButton = document.getElementById('saveToFolderButton');
+            
+            // CSV Tab
+            const csvInput = document.getElementById('csvInput');
+            const csvFolderInput = document.getElementById('csvFolderInput');
+            const csvPreview = document.getElementById('csvPreview');
+            const csvFileCount = document.getElementById('csvFileCount');
+            const csvFileCountText = document.getElementById('csvFileCountText');
+            const csvFileTableContainer = document.getElementById('csvFileTableContainer');
+            const csvButtons = document.getElementById('csvButtons');
+            const csvDownloadAllButton = document.getElementById('csvDownloadAllButton');
+            const csvSaveToFolderButton = document.getElementById('csvSaveToFolderButton');
+            
+            // Progress
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            
+            // Notification
+            const notification = document.getElementById('notification');
+            const notificationText = document.getElementById('notificationText');
+            
+            let files = [];
+            let csvFiles = [];
+            let mappings = [];
+            
+            // Manual Rename Tab Functionality
+            folderInput.addEventListener('change', function(event) {
+                handleFileSelection(Array.from(event.target.files));
+            });
+            
+            fileInput.addEventListener('change', function(event) {
+                handleFileSelection(Array.from(event.target.files));
+            });
+            
+            function handleFileSelection(selectedFiles) {
+                files = selectedFiles;
+                
+                if (files.length > 0) {
+                    renderFileTable(files, fileTableContainer);
+                    fileCount.style.display = 'block';
+                    fileCountText.textContent = `${files.length} files selected`;
+                    manualButtons.style.display = 'flex';
+                } else {
+                    fileTableContainer.innerHTML = `
+                        <div class="no-files">
+                            <i class="fas fa-file-import"></i>
+                            <p>No files selected. Please select a folder or files first.</p>
+                        </div>
+                    `;
+                    fileCount.style.display = 'none';
+                    manualButtons.style.display = 'none';
+                }
+            }
+            
+            function renderFileTable(files, container) {
+                const table = document.createElement('table');
+                table.className = 'file-table';
+                
+                // Create header
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+                
+                const thOriginal = document.createElement('th');
+                thOriginal.textContent = 'Original Filename';
+                headerRow.appendChild(thOriginal);
+                
+                const thNew = document.createElement('th');
+                thNew.textContent = 'New Filename';
+                headerRow.appendChild(thNew);
+                
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+                
+                // Create body
+                const tbody = document.createElement('tbody');
+                
+                files.forEach((file, index) => {
+                    const row = document.createElement('tr');
+                    
+                    const tdOriginal = document.createElement('td');
+                    tdOriginal.textContent = file.name;
+                    row.appendChild(tdOriginal);
+                    
+                    const tdNew = document.createElement('td');
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'file-name-input';
+                    input.value = file.name;
+                    input.dataset.index = index;
+                    tdNew.appendChild(input);
+                    row.appendChild(tdNew);
+                    
+                    tbody.appendChild(row);
+                });
+                
+                table.appendChild(tbody);
+                
+                container.innerHTML = '';
+                container.appendChild(table);
+            }
+            
+            // CSV Import Tab Functionality
+            csvInput.addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    parseCSV(e.target.result);
+                };
+                reader.readAsText(file);
+            });
+            
+            csvFolderInput.addEventListener('change', function(event) {
+                csvFiles = Array.from(event.target.files);
+                
+                if (csvFiles.length > 0 && mappings.length > 0) {
+                    renderCSVFileTable();
+                    csvFileCount.style.display = 'block';
+                    csvFileCountText.textContent = `${csvFiles.length} files selected`;
+                    csvButtons.style.display = 'flex';
+                } else {
+                    csvFileCount.style.display = 'none';
+                    if (mappings.length === 0) {
+                        showNotification('Please upload a CSV file first', 'error');
+                    }
+                }
+            });
+            
+            function parseCSV(content) {
+                // Use PapaParse for better CSV parsing
+                import('https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js')
+                    .then(module => {
+                        const Papa = module.default || window.Papa;
+                        
+                        const results = Papa.parse(content, {
+                            header: true,
+                            skipEmptyLines: true,
+                            trimHeaders: true
+                        });
+                        
+                        if (results.data && results.data.length > 0) {
+                            // Check if the CSV has the required columns
+                            const firstRow = results.data[0];
+                            const hasOldName = 'old_name' in firstRow;
+                            const hasNewName = 'new_name' in firstRow;
+                            
+                            if (!hasOldName || !hasNewName) {
+                                showNotification('CSV file must have "old_name" and "new_name" columns', 'error');
+                                return;
+                            }
+                            
+                            mappings = results.data;
+                            
+                            // Show CSV preview
+                            renderCSVPreview(mappings);
+                            csvPreview.style.display = 'block';
+                            
+                            // If files already selected, render the table
+                            if (csvFiles.length > 0) {
+                                renderCSVFileTable();
+                                csvButtons.style.display = 'flex';
+                            }
+                        } else {
+                            showNotification('Invalid CSV file or empty data', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        showNotification('Failed to parse CSV: ' + error.message, 'error');
+                    });
+            }
+            
+            function renderCSVPreview(mappings) {
+                let html = `<table class="file-table">
+                            <thead>
+                                <tr>
+                                    <th>Original Name</th>
+                                    <th>New Name</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+                            
+                const maxPreviewRows = 10;
+                const previewMappings = mappings.slice(0, maxPreviewRows);
+                
+                previewMappings.forEach(mapping => {
+                    html += `<tr>
+                                <td>${mapping.old_name}</td>
+                                <td>${mapping.new_name}</td>
+                             </tr>`;
+                });
+                
+                if (mappings.length > maxPreviewRows) {
+                    html += `<tr>
+                                <td colspan="2" style="text-align: center; color: #6b7280;">
+                                    ... ${mappings.length - maxPreviewRows} more rows
+                                </td>
+                             </tr>`;
+                }
+                
+                html += `</tbody></table>`;
+                csvPreview.innerHTML = html;
+            }
+            
+            function renderCSVFileTable() {
+                const fileMap = new Map();
+                csvFiles.forEach(file => {
+                    fileMap.set(file.name, file);
+                });
+                
+                const table = document.createElement('table');
+                table.className = 'file-table';
+                
+                // Create header
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+                
+                const thOriginal = document.createElement('th');
+                thOriginal.textContent = 'Original Filename';
+                headerRow.appendChild(thOriginal);
+                
+                const thNew = document.createElement('th');
+                thNew.textContent = 'New Filename';
+                headerRow.appendChild(thNew);
+                
+                const thStatus = document.createElement('th');
+                thStatus.textContent = 'Status';
+                headerRow.appendChild(thStatus);
+                
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+                
+                // Create body
+                const tbody = document.createElement('tbody');
+                
+                let matchedFiles = 0;
+                
+                mappings.forEach((mapping, index) => {
+                    const row = document.createElement('tr');
+                    
+                    const tdOriginal = document.createElement('td');
+                    tdOriginal.textContent = mapping.old_name;
+                    row.appendChild(tdOriginal);
+                    
+                    const tdNew = document.createElement('td');
+                    tdNew.textContent = mapping.new_name;
+                    row.appendChild(tdNew);
+                    
+                    const tdStatus = document.createElement('td');
+                    if (fileMap.has(mapping.old_name)) {
+                        tdStatus.innerHTML = '<span style="color: var(--success-color);"><i class="fas fa-check-circle"></i> Match found</span>';
+                        matchedFiles++;
+                    } else {
+                        tdStatus.innerHTML = '<span style="color: var(--danger-color);"><i class="fas fa-times-circle"></i> No match</span>';
+                    }
+                    row.appendChild(tdStatus);
+                    
+                    tbody.appendChild(row);
+                });
+                
+                table.appendChild(tbody);
+                
+                csvFileTableContainer.innerHTML = '';
+                csvFileTableContainer.appendChild(table);
+                
+                csvFileCountText.textContent = `${matchedFiles} of ${mappings.length} files matched`;
+                
+                if (matchedFiles === 0) {
+                    showNotification('No matching files found in the selected folder', 'error');
+                    csvButtons.style.display = 'none';
+                } else {
+                    csvButtons.style.display = 'flex';
+                }
+            }
+            
+            // Button Click Actions
+            downloadAllButton.addEventListener('click', function() {
+                const newNames = Array.from(document.querySelectorAll('#fileTableContainer .file-name-input')).map(input => input.value);
+                processFiles(files, newNames, 'download');
+            });
+            
+            saveToFolderButton.addEventListener('click', function() {
+                showSaveDialog().then(handle => {
+                    if (handle) {
+                        const newNames = Array.from(document.querySelectorAll('#fileTableContainer .file-name-input')).map(input => input.value);
+                        processFiles(files, newNames, 'save', handle);
+                    }
+                });
+            });
+            
+            csvDownloadAllButton.addEventListener('click', function() {
+                processCSVFiles('download');
+            });
+            
+            csvSaveToFolderButton.addEventListener('click', function() {
+                showSaveDialog().then(handle => {
+                    if (handle) {
+                        processCSVFiles('save', handle);
+                    }
+                });
+            });
+            
+            // Process Files
+            async function processFiles(filesToProcess, newNames, action, folderHandle = null) {
+                try {
+                    showProgress(0);
+                    
+                    // Import JSZip
+                    const jsZipModule = await import('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+                    const JSZip = jsZipModule.default || window.JSZip;
+                    const zip = new JSZip();
+                    
+                    const totalFiles = filesToProcess.length;
+                    let processedFiles = 0;
+                    
+                    // Process files in chunks to prevent UI freeze
+                    const chunkSize = 5;
+                    const chunks = Math.ceil(totalFiles / chunkSize);
+                    
+                    for (let i = 0; i < chunks; i++) {
+                        const start = i * chunkSize;
+                        const end = Math.min(start + chunkSize, totalFiles);
+                        const chunkPromises = [];
+                        
+                        for (let j = start; j < end; j++) {
+                            const file = filesToProcess[j];
+                            const newName = newNames[j];
+                            
+                            const promise = new Promise((resolve, reject) => {
+                                const reader = new FileReader();
+                                reader.onload = function(e) {
+                                    const content = e.target.result;
+                                    
+                                    if (action === 'download') {
+                                        zip.file(newName, content);
+                                    } else if (action === 'save' && folderHandle) {
+                                        // File saving code would go here if Web API supported direct folder access
+                                        // Currently, we'll use the zip approach
+                                        zip.file(newName, content);
+                                    }
+                                    
+                                    processedFiles++;
+                                    const progress = Math.round((processedFiles / totalFiles) * 100);
+                                    showProgress(progress);
+                                    
+                                    resolve();
+                                };
+                                reader.onerror = reject;
+                                reader.readAsArrayBuffer(file);
+                            });
+                            
+                            chunkPromises.push(promise);
+                        }
+                        
+                        await Promise.all(chunkPromises);
+                    }
+                    
+                    // Finalize the process
+                    if (action === 'download' || action === 'save') {
+                        const content = await zip.generateAsync({type: 'blob'});
+                        const downloadLink = document.createElement('a');
+                        downloadLink.href = URL.createObjectURL(content);
+                        downloadLink.download = 'renamed_files.zip';
+                        document.body.appendChild(downloadLink);
+                        downloadLink.click();
+                        document.body.removeChild(downloadLink);
+                    }
+                    
+                    hideProgress();
+                    showNotification('Files processed successfully!', 'success');
+                } catch (error) {
+                    console.error('Error processing files:', error);
+                    hideProgress();
+                    showNotification('Error processing files: ' + error.message, 'error');
+                }
+            }
+            
+            async function processCSVFiles(action, folderHandle = null) {
+                try {
+                    showProgress(0);
+                    
+                    // Create a mapping from old name to new name
+                    const nameMap = new Map();
+                    mappings.forEach(mapping => {
+                        nameMap.set(mapping.old_name, mapping.new_name);
+                    });
+                    
+                    // Filter files that have mappings
+                    const filesToProcess = csvFiles.filter(file => nameMap.has(file.name));
+                    const newNames = filesToProcess.map(file => nameMap.get(file.name));
+                    
+                    if (filesToProcess.length === 0) {
+                        hideProgress();
+                        showNotification('No matching files found in CSV mappings', 'error');
+                        return;
+                    }
+                    
+                    await processFiles(filesToProcess, newNames, action, folderHandle);
+                } catch (error) {
+                    console.error('Error processing CSV files:', error);
+                    hideProgress();
+                    showNotification('Error processing CSV files: ' + error.message, 'error');
+                }
+            }
+            
+            // Helper Functions
+            function showProgress(percent) {
+                progressContainer.style.display = 'block';
+                progressBar.style.width = percent + '%';
+                progressText.textContent = `Processing files: ${percent}%`;
+            }
+            
+            function hideProgress() {
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                }, 1000);
+            }
+            
+            function showNotification(message, type = 'success') {
+                notification.className = 'notification';
+                notification.classList.add(type);
+                notificationText.textContent = message;
+                notification.classList.add('show');
+                
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            }
+            
+            async function showSaveDialog() {
+                try {
+                    // Check if the File System Access API is supported
+                    if ('showDirectoryPicker' in window) {
+                        return await window.showDirectoryPicker();
+                    } else {
+                        showNotification('Your browser does not support folder selection. Files will be downloaded as a ZIP instead.', 'warning');
+                        return null;
+                    }
+                } catch (error) {
+                    console.error('Error selecting folder:', error);
+                    showNotification('Folder selection was cancelled or failed', 'error');
+                    return null;
+                }
+            }
+        });
+    </script>
+</body>
+</html>

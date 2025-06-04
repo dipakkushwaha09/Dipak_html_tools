@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-File Converter</title>
+    <style>
+        :root {
+            --primary-color: #4285f4;
+            --secondary-color: #34a853;
+            --accent-color: #fbbc05;
+            --danger-color: #ea4335;
+            --light-color: #f8f9fa;
+            --dark-color: #202124;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background-color: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        h1 {
+            color: var(--dark-color);
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 28px;
+            position: relative;
+        }
+
+        h1::after {
+            content: '';
+            position: absolute;
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 2px;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--primary-color);
+            border-radius: 10px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 25px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .upload-area:hover {
+            background-color: rgba(66, 133, 244, 0.05);
+        }
+
+        .upload-area.drag-over {
+            background-color: rgba(66, 133, 244, 0.1);
+            border-color: var(--secondary-color);
+        }
+
+        .upload-icon {
+            font-size: 50px;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            color: var(--dark-color);
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .upload-info {
+            color: #666;
+            font-size: 14px;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .conversion-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            align-items: center;
+        }
+
+        .extension-input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .extension-input:focus {
+            border-color: var(--primary-color);
+        }
+
+        .convert-btn {
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .convert-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .convert-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .file-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border-radius: 8px;
+            background-color: var(--light-color);
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 15px;
+            border-bottom: 1px solid #ddd;
+            animation: slideIn 0.3s ease-in-out;
+        }
+
+        .file-item:last-child {
+            border-bottom: none;
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+        }
+
+        .file-icon {
+            font-size: 24px;
+            color: var(--primary-color);
+        }
+
+        .file-name {
+            font-size: 15px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 300px;
+        }
+
+        .file-size {
+            color: #666;
+            font-size: 13px;
+        }
+
+        .file-status {
+            font-size: 14px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background-color: #e0e0e0;
+            color: #333;
+        }
+
+        .file-status.converted {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .file-status.error {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .remove-btn {
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            color: #999;
+            transition: color 0.2s;
+        }
+
+        .remove-btn:hover {
+            color: var(--danger-color);
+        }
+
+        .empty-list {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background-color: #eee;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        .progress {
+            height: 100%;
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+            width: 0;
+            transition: width 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .pulse {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(66, 133, 244, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(66, 133, 244, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(66, 133, 244, 0);
+            }
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 5px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .download-all {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .download-btn {
+            background: linear-gradient(to right, var(--accent-color), var(--secondary-color));
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background-color: white;
+            border-left: 4px solid var(--secondary-color);
+            border-radius: 4px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            transform: translateX(110%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification-error {
+            border-left-color: var(--danger-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Multi-File Converter</h1>
+        
+        <div class="upload-area" id="drop-area">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">Drag & Drop files here</div>
+            <div class="upload-info">or click to browse</div>
+            <input type="file" id="file-input" multiple>
+        </div>
+        
+        <div class="conversion-controls">
+            <input type="text" class="extension-input" id="extension-input" placeholder="Type target extension (e.g., .txt, .pdf)">
+            <button class="convert-btn" id="convert-btn">Convert Files</button>
+        </div>
+        
+        <div class="file-list" id="file-list">
+            <div class="empty-list">No files selected</div>
+        </div>
+        
+        <div class="progress-bar" id="progress-bar">
+            <div class="progress" id="progress"></div>
+        </div>
+        
+        <div class="download-all" id="download-container" style="display: none;">
+            <button class="download-btn" id="download-btn">
+                <span>Download All Files</span>
+            </button>
+        </div>
+    </div>
+    
+    <div class="notification" id="notification"></div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropArea = document.getElementById('drop-area');
+            const fileInput = document.getElementById('file-input');
+            const fileList = document.getElementById('file-list');
+            const extensionInput = document.getElementById('extension-input');
+            const convertBtn = document.getElementById('convert-btn');
+            const progressBar = document.getElementById('progress');
+            const downloadBtn = document.getElementById('download-btn');
+            const downloadContainer = document.getElementById('download-container');
+            const notification = document.getElementById('notification');
+            
+            let files = [];
+            let convertedFiles = [];
+            
+            // Drag and drop events
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, highlight, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, unhighlight, false);
+            });
+            
+            function highlight() {
+                dropArea.classList.add('drag-over');
+            }
+            
+            function unhighlight() {
+                dropArea.classList.remove('drag-over');
+            }
+            
+            // Handle dropped files
+            dropArea.addEventListener('drop', handleDrop, false);
+            
+            function handleDrop(e) {
+                const droppedFiles = e.dataTransfer.files;
+                handleFiles(droppedFiles);
+            }
+            
+            // Handle selected files
+            dropArea.addEventListener('click', () => {
+                fileInput.click();
+            });
+            
+            fileInput.addEventListener('change', function() {
+                handleFiles(this.files);
+            });
+            
+            function handleFiles(newFiles) {
+                if (newFiles.length === 0) return;
+                
+                // Add new files to the array
+                for (const file of newFiles) {
+                    if (!files.some(f => f.name === file.name && f.size === file.size)) {
+                        files.push(file);
+                    }
+                }
+                
+                updateFileList();
+                showNotification(`${newFiles.length} file(s) added successfully!`);
+            }
+            
+            function updateFileList() {
+                if (files.length === 0) {
+                    fileList.innerHTML = '<div class="empty-list">No files selected</div>';
+                    downloadContainer.style.display = 'none';
+                    return;
+                }
+                
+                fileList.innerHTML = '';
+                
+                files.forEach((file, index) => {
+                    const fileSize = formatFileSize(file.size);
+                    const fileExt = getFileExtension(file.name);
+                    
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'file-item';
+                    fileItem.innerHTML = `
+                        <div class="file-info">
+                            <div class="file-icon">📄</div>
+                            <div>
+                                <div class="file-name" title="${file.name}">${file.name}</div>
+                                <div class="file-size">${fileSize} · ${fileExt}</div>
+                            </div>
+                        </div>
+                        <div class="file-status">Ready</div>
+                        <button class="remove-btn" data-index="${index}">✕</button>
+                    `;
+                    
+                    fileList.appendChild(fileItem);
+                });
+                
+                // Add event listeners to remove buttons
+                document.querySelectorAll('.remove-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const index = parseInt(this.getAttribute('data-index'));
+                        files.splice(index, 1);
+                        updateFileList();
+                    });
+                });
+            }
+            
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+            
+            function getFileExtension(filename) {
+                return filename.slice((filename.lastIndexOf('.') - 1 >>> 0) + 1);
+            }
+            
+            // Convert button click
+            convertBtn.addEventListener('click', async function() {
+                if (files.length === 0) {
+                    showNotification('Please add files first!', true);
+                    return;
+                }
+                
+                let targetExt = extensionInput.value.trim();
+                if (!targetExt) {
+                    showNotification('Please enter a target extension!', true);
+                    return;
+                }
+                
+                // Add a dot if the user didn't include it
+                if (!targetExt.startsWith('.')) {
+                    targetExt = '.' + targetExt;
+                }
+                
+                convertBtn.disabled = true;
+                convertBtn.innerHTML = '<div class="loading-spinner"></div> Converting...';
+                
+                convertedFiles = [];
+                let completedFiles = 0;
+                
+                const fileStatusElements = document.querySelectorAll('.file-status');
+                
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    const statusElement = fileStatusElements[i];
+                    
+                    statusElement.textContent = 'Converting...';
+                    statusElement.className = 'file-status';
+                    
+                    try {
+                        // Simulate file conversion (in a real app, this would be where you'd do the actual conversion)
+                        await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
+                        
+                        const reader = new FileReader();
+                        
+                        reader.onload = function(e) {
+                            const content = e.target.result;
+                            
+                            // Get the file name without extension
+                            const nameParts = file.name.split('.');
+                            nameParts.pop();
+                            const nameWithoutExt = nameParts.join('.');
+                            
+                            // Create new file name with the target extension
+                            const newFileName = nameWithoutExt + targetExt;
+                            
+                            // In a real app, you'd convert the file here
+                            // For this demo, we're just changing the file extension
+                            const convertedFile = new File([content], newFileName, { type: file.type });
+                            
+                            convertedFiles.push({
+                                originalName: file.name,
+                                file: convertedFile
+                            });
+                            
+                            completedFiles++;
+                            progressBar.style.width = (completedFiles / files.length * 100) + '%';
+                            
+                            statusElement.textContent = 'Converted';
+                            statusElement.className = 'file-status converted';
+                            
+                            if (completedFiles === files.length) {
+                                convertBtn.disabled = false;
+                                convertBtn.textContent = 'Convert Files';
+                                downloadContainer.style.display = 'flex';
+                                showNotification('All files converted successfully!');
+                            }
+                        };
+                        
+                        reader.onerror = function() {
+                            statusElement.textContent = 'Error';
+                            statusElement.className = 'file-status error';
+                            
+                            completedFiles++;
+                            progressBar.style.width = (completedFiles / files.length * 100) + '%';
+                            
+                            if (completedFiles === files.length) {
+                                convertBtn.disabled = false;
+                                convertBtn.textContent = 'Convert Files';
+                                
+                                if (convertedFiles.length > 0) {
+                                    downloadContainer.style.display = 'flex';
+                                }
+                            }
+                        };
+                        
+                        reader.readAsArrayBuffer(file);
+                        
+                    } catch (error) {
+                        statusElement.textContent = 'Error';
+                        statusElement.className = 'file-status error';
+                        
+                        completedFiles++;
+                        progressBar.style.width = (completedFiles / files.length * 100) + '%';
+                        
+                        if (completedFiles === files.length) {
+                            convertBtn.disabled = false;
+                            convertBtn.textContent = 'Convert Files';
+                            
+                            if (convertedFiles.length > 0) {
+                                downloadContainer.style.display = 'flex';
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Download button click
+            downloadBtn.addEventListener('click', function() {
+                if (convertedFiles.length === 0) return;
+                
+                // If only one file, download it directly
+                if (convertedFiles.length === 1) {
+                    downloadFile(convertedFiles[0].file);
+                    return;
+                }
+                
+                // For multiple files, create a zip file (would require a library like JSZip in a real app)
+                // Here we'll just download them one by one
+                convertedFiles.forEach(item => {
+                    downloadFile(item.file);
+                });
+            });
+            
+            function downloadFile(file) {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(file);
+                link.download = file.name;
+                link.click();
+                
+                // Clean up
+                setTimeout(() => {
+                    URL.revokeObjectURL(link.href);
+                }, 100);
+            }
+            
+            function showNotification(message, isError = false) {
+                notification.textContent = message;
+                notification.className = isError 
+                    ? 'notification notification-error show' 
+                    : 'notification show';
+                
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            }
+        });
+    </script>
+</body>
+</html>

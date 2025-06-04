@@ -1,0 +1,1883 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPYNB Viewer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.3.10/purify.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* Custom styles for better aesthetics and animations */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5; /* Light grey background */
+        }
+        #drop-zone {
+            border: 3px dashed #cbd5e1; /* Tailwind slate-300 */
+            border-radius: 0.75rem; /* More rounded corners */
+            padding: 2.5rem; /* Tailwind p-10 */
+            text-align: center;
+            transition: all 0.3s ease-in-out; /* Smooth transition for all properties */
+            background-color: #ffffff; /* White background */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Larger shadow */
+            cursor: pointer; /* Indicate it's clickable */
+        }
+        #drop-zone.dragover {
+            background-color: #e2e8f0; /* Tailwind slate-200 */
+            border-color: #64748b; /* Tailwind slate-500 */
+            transform: translateY(-5px) scale(1.02); /* Lift and slightly enlarge on dragover */
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); /* Deeper shadow */
+        }
+        .cell {
+            background-color: #ffffff; /* White cell background */
+            margin-bottom: 1.5rem; /* Tailwind mb-6 */
+            border-radius: 0.75rem; /* More rounded corners */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* Tailwind shadow-lg */
+            overflow: hidden; /* Keep content within cell boundaries */
+            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out; /* Smooth transition for cells */
+        }
+        .cell:hover {
+            transform: translateY(-3px); /* Slightly lift cells on hover */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Deeper shadow on hover */
+        }
+        .cell-input {
+            padding: 1rem; /* Tailwind p-4 */
+            background-color: #f8fafc; /* Tailwind slate-50 */
+            border-bottom: 1px solid #e2e8f0; /* Tailwind slate-200 */
+        }
+        .cell-input pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background-color: #1e293b; /* Tailwind slate-800 */
+            color: #e2e8f0; /* Tailwind slate-200 */
+            padding: 0.75rem; /* Tailwind p-3 */
+            border-radius: 0.5rem; /* More rounded corners */
+            font-family: 'Fira Code', 'Courier New', Courier, monospace; /* Fira Code for monospace */
+            font-size: 0.875rem; /* Tailwind text-sm */
+            overflow-x: auto; /* Allow horizontal scrolling for long lines */
+        }
+        .cell-output {
+            padding: 1rem; /* Tailwind p-4 */
+            overflow-x: auto; /* Allow horizontal scrolling if output is wide */
+        }
+        .cell-output pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background-color: #f1f5f9; /* Tailwind slate-100 */
+            padding: 0.75rem; /* Tailwind p-3 */
+            border-radius: 0.5rem; /* More rounded corners */
+            font-family: 'Fira Code', 'Courier New', Courier, monospace;
+            font-size: 0.875rem; /* Tailwind text-sm */
+            color: #334155; /* Tailwind slate-700 */
+            overflow-x: auto; /* Allow horizontal scrolling for long lines */
+        }
+        .cell-output img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin-top: 0.5rem; /* Tailwind mt-2 */
+            margin-bottom: 0.5rem; /* Tailwind mb-2 */
+            border-radius: 0.5rem; /* More rounded corners */
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06); /* Subtle shadow for images */
+        }
+        .show-code-button {
+            background-image: linear-gradient(to right, #3b82f6 0%, #60a5fa 100%); /* Blue gradient */
+            color: white;
+            padding: 0.6rem 1.2rem; /* Slightly larger padding */
+            border-radius: 0.5rem; /* More rounded corners */
+            cursor: pointer;
+            transition: all 0.3s ease; /* Smooth transition for all properties */
+            font-size: 0.875rem; /* Tailwind text-sm */
+            border: none;
+            margin-top: 0.5rem; /* Tailwind mt-2 */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* Shadow */
+        }
+        .show-code-button:hover {
+            background-position: right center; /* Shift gradient on hover */
+            transform: translateY(-2px); /* Lift button on hover */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Deeper shadow */
+        }
+        .show-code-button:active {
+            transform: translateY(0); /* Press down effect */
+            box-shadow: none;
+        }
+        .hidden-code {
+            display: none;
+        }
+        .error-output {
+            background-color: #fee2e2; /* Tailwind red-100 */
+            color: #b91c1c; /* Tailwind red-700 */
+            padding: 0.75rem; /* Tailwind p-3 */
+            border-radius: 0.5rem; /* More rounded corners */
+            border: 1px solid #fecaca; /* Tailwind red-200 */
+        }
+        .error-output pre {
+            background-color: transparent;
+            color: inherit;
+            padding: 0;
+        }
+        .markdown-output h1, .markdown-output h2, .markdown-output h3 {
+            border-bottom: 1px solid #e2e8f0; /* Tailwind slate-200 */
+            padding-bottom: 0.25rem; /* Tailwind pb-1 */
+            margin-top: 1.5rem; /* More margin top */
+            margin-bottom: 0.75rem; /* More margin bottom */
+            color: #1e293b; /* Darker heading color */
+        }
+        .markdown-output h1 { font-size: 2.25rem; font-weight: 700; } /* text-4xl, font-bold */
+        .markdown-output h2 { font-size: 1.875rem; font-weight: 600; } /* text-3xl, font-semibold */
+        .markdown-output h3 { font-size: 1.5rem; font-weight: 600; } /* text-2xl, font-semibold */
+
+        .markdown-output p {
+            margin-bottom: 1rem; /* More margin bottom */
+            line-height: 1.7; /* Better readability */
+            color: #334155; /* Tailwind slate-700 */
+        }
+        .markdown-output ul, .markdown-output ol {
+            margin-left: 1.75rem; /* More margin left */
+            margin-bottom: 1rem; /* More margin bottom */
+            list-style-type: disc; /* Default bullet points */
+            color: #334155; /* Tailwind slate-700 */
+        }
+        .markdown-output ul li, .markdown-output ol li {
+            margin-bottom: 0.25rem; /* Space between list items */
+        }
+        .markdown-output code { /* Inline code in markdown */
+            background-color: #e2e8f0; /* Tailwind slate-200 */
+            padding: 0.15rem 0.3rem; /* Slightly more padding */
+            border-radius: 0.375rem; /* More rounded */
+            font-family: 'Fira Code', 'Courier New', Courier, monospace;
+            font-size: 0.875rem; /* Tailwind text-sm */
+            color: #1e293b; /* Darker code color */
+        }
+        .markdown-output pre code { /* Code blocks in markdown */
+            display: block; /* Ensure it takes full width */
+            padding: 0.75rem;
+            background-color: #1e293b;
+            color: #e2e8f0;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+        }
+        .markdown-output blockquote {
+            border-left: 5px solid #94a3b8; /* Tailwind slate-400 */
+            padding-left: 1.25rem; /* More padding */
+            margin-left: 0;
+            margin-bottom: 1rem; /* More margin bottom */
+            color: #475569; /* Tailwind slate-600 */
+            background-color: #f1f5f9; /* Light background for blockquote */
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+            border-radius: 0.25rem; /* Small radius for blockquote */
+        }
+
+        /* Custom Modal for alerts/messages */
+        .custom-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .custom-modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .custom-modal-content {
+            background-color: #ffffff;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            text-align: center;
+            max-width: 90%;
+            width: 400px;
+            transform: translateY(-20px);
+            transition: transform 0.3s ease;
+        }
+        .custom-modal.show .custom-modal-content {
+            transform: translateY(0);
+        }
+        .custom-modal-content button {
+            background-color: #3b82f6;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            border: none;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: background-color 0.3s ease;
+        }
+        .custom-modal-content button:hover {
+            background-color: #2563eb;
+        }
+
+        /* Animated buttons in header */
+        .header-button {
+            background-image: linear-gradient(to right, #6366f1 0%, #818cf8 100%); /* Indigo gradient */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .header-button:hover {
+            background-position: right center;
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .header-button:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+
+        /* Dropdown for download options */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #f9f9f9;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            top: 100%; /* Position below the button */
+            left: 50%; /* Center relative to button */
+            transform: translateX(-50%); /* Adjust for centering */
+            margin-top: 0.5rem; /* Space from button */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .dropdown-content button {
+            color: black;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            text-align: left;
+            background-color: #f9f9f9;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            border-radius: 0; /* Remove individual button radius */
+        }
+
+        .dropdown-content button:hover {
+            background-color: #e2e8f0; /* Tailwind slate-200 */
+        }
+    </style>
+</head>
+<body class="bg-slate-100 p-4 md:p-8">
+    <div class="container mx-auto max-w-4xl">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-700 mb-4">IPYNB Viewer</h1>
+            <p class="text-slate-500 mt-2 mb-6">Apni .ipynb file ko neeche drag aur drop karein.</p>
+
+            <div class="flex flex-col sm:flex-row justify-center items-center gap-4">
+                <button id="copy-all-button" class="header-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+                        <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+                    </svg>
+                    <span>Sab Copy Karein</span>
+                </button>
+
+                <div class="dropdown">
+                    <button id="download-button" class="header-button">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                        <span>Download Karein</span>
+                    </button>
+                    <div class="dropdown-content">
+                        <button id="download-ipynb">.ipynb</button>
+                        <button id="download-txt">.txt</button>
+                        <button id="download-pdf">.pdf</button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div id="drop-zone" class="mb-8">
+            <p id="drop-message" class="text-slate-500 text-lg font-medium">File yahan drag karein ya click karke select karein</p>
+            <input type="file" id="file-input" accept=".ipynb" class="hidden">
+        </div>
+
+        <div id="notebook-output" class="space-y-6">
+            </div>
+
+        <footer class="mt-12 text-center text-sm text-slate-500">
+            <p>&copy; 2024 IPYNB Viewer. Bas aapke liye!</p>
+        </footer>
+    </div>
+
+    <div id="custom-modal" class="custom-modal">
+        <div class="custom-modal-content">
+            <p id="modal-message"></p>
+            <button id="modal-close-button">OK</button>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const notebookOutputDiv = document.getElementById('notebook-output');
+        const dropMessage = document.getElementById('drop-message');
+        const copyAllButton = document.getElementById('copy-all-button');
+        const downloadIpynbButton = document.getElementById('download-ipynb');
+        const downloadTxtButton = document.getElementById('download-txt');
+        const downloadPdfButton = document.getElementById('download-pdf');
+
+        const customModal = document.getElementById('custom-modal');
+        const modalMessage = document.getElementById('modal-message');
+        const modalCloseButton = document.getElementById('modal-close-button');
+
+        let currentNotebookContent = null; // To store the parsed notebook for download
+
+        // Custom modal functions
+        function showModal(message) {
+            modalMessage.textContent = message;
+            customModal.classList.add('show');
+        }
+
+        function hideModal() {
+            customModal.classList.remove('show');
+        }
+
+        modalCloseButton.addEventListener('click', hideModal);
+        customModal.addEventListener('click', (event) => {
+            if (event.target === customModal) {
+                hideModal();
+            }
+        });
+
+        // Drag and drop event listeners
+        dropZone.addEventListener('dragover', (event) => {
+            event.preventDefault(); // Prevent default to allow drop
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (event) => {
+            event.preventDefault();
+            dropZone.classList.remove('dragover');
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        // Click to upload
+        dropZone.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (event) => {
+            const files = event.target.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            if (file.name.endsWith('.ipynb')) {
+                dropMessage.textContent = `Processing ${file.name}...`;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const notebookContent = JSON.parse(e.target.result);
+                        currentNotebookContent = notebookContent; // Store for download
+                        renderNotebook(notebookContent);
+                        dropMessage.textContent = `${file.name} safaltapoorvak load ho gaya.`;
+                    } catch (error) {
+                        console.error('Error parsing IPYNB file:', error);
+                        notebookOutputDiv.innerHTML = `<div class="cell error-output"><p>Error: File ko parse karne mein samasya hui. Kya yeh sahi IPYNB file hai?</p><pre>${error.toString()}</pre></div>`;
+                        dropMessage.textContent = `Error processing ${file.name}.`;
+                        showModal('Error: File ko parse karne mein samasya hui. Kya yeh sahi IPYNB file hai?');
+                    }
+                };
+                reader.onerror = () => {
+                    console.error('Error reading file');
+                    notebookOutputDiv.innerHTML = `<div class="cell error-output"><p>Error: File padhne mein samasya hui.</p></div>`;
+                    dropMessage.textContent = `Error reading ${file.name}.`;
+                    showModal('Error: File padhne mein samasya hui.');
+                }
+                reader.readAsText(file);
+            } else {
+                dropMessage.textContent = 'Kripya ek .ipynb file hi select karein. File yahan drag karein ya click karke select karein';
+                showModal('Kripya ek .ipynb file hi select karein.');
+            }
+        }
+
+        function renderNotebook(notebook) {
+            notebookOutputDiv.innerHTML = ''; // Clear previous content
+
+            if (!notebook.cells || !Array.isArray(notebook.cells)) {
+                notebookOutputDiv.innerHTML = `<div class="cell error-output"><p>Error: Invalid notebook format. 'cells' array nahi mila.</p></div>`;
+                return;
+            }
+
+            notebook.cells.forEach((cell, index) => {
+                const cellDiv = document.createElement('div');
+                cellDiv.className = 'cell';
+
+                // Input (code) part for code cells
+                if (cell.cell_type === 'code' && cell.source && Array.isArray(cell.source)) {
+                    const inputDiv = document.createElement('div');
+                    // Code is visible by default
+                    inputDiv.className = 'cell-input'; 
+                    inputDiv.id = `input-${index}`;
+                    
+                    const pre = document.createElement('pre');
+                    pre.textContent = cell.source.join('');
+                    inputDiv.appendChild(pre);
+                    cellDiv.appendChild(inputDiv);
+                }
+
+                // Output part
+                const outputDiv = document.createElement('div');
+                outputDiv.className = 'cell-output';
+
+                if (cell.cell_type === 'markdown') {
+                    const markdownContent = cell.source.join('');
+                    // Sanitize and parse markdown
+                    const cleanHtml = DOMPurify.sanitize(marked.parse(markdownContent));
+                    const markdownRenderDiv = document.createElement('div');
+                    markdownRenderDiv.className = 'markdown-output';
+                    markdownRenderDiv.innerHTML = cleanHtml;
+                    outputDiv.appendChild(markdownRenderDiv);
+
+                } else if (cell.cell_type === 'code') {
+                    if (cell.outputs && Array.isArray(cell.outputs)) {
+                        cell.outputs.forEach(output => {
+                            const outputElement = document.createElement('div');
+                            outputElement.className = 'output-item mb-2'; // Space between output items
+
+                            if (output.output_type === 'stream') { // e.g., print() statements
+                                const pre = document.createElement('pre');
+                                pre.textContent = output.text.join ? output.text.join('') : output.text;
+                                outputElement.appendChild(pre);
+                            } else if (output.output_type === 'execute_result' || output.output_type === 'display_data') {
+                                if (output.data) {
+                                    if (output.data['text/html']) {
+                                        const htmlContent = output.data['text/html'].join ? output.data['text/html'].join('') : output.data['text/html'];
+                                        // Sanitize HTML
+                                        const cleanHtml = DOMPurify.sanitize(htmlContent);
+                                        const div = document.createElement('div');
+                                        div.innerHTML = cleanHtml;
+                                        outputElement.appendChild(div);
+                                    } else if (output.data['image/png']) {
+                                        const img = document.createElement('img');
+                                        img.src = 'data:image/png;base64,' + output.data['image/png'];
+                                        img.alt = 'Notebook output image';
+                                        outputElement.appendChild(img);
+                                    } else if (output.data['image/jpeg']) {
+                                        const img = document.createElement('img');
+                                        img.src = 'data:image/jpeg;base64,' + output.data['image/jpeg'];
+                                        img.alt = 'Notebook output image';
+                                        outputElement.appendChild(img);
+                                    } else if (output.data['text/plain']) {
+                                        const pre = document.createElement('pre');
+                                        pre.textContent = output.data['text/plain'].join ? output.data['text/plain'].join('') : output.data['text/plain'];
+                                        outputElement.appendChild(pre);
+                                    } else {
+                                        // Fallback: if no specific handler, show JSON string
+                                        const pre = document.createElement('pre');
+                                        pre.textContent = JSON.stringify(output.data, null, 2);
+                                        outputElement.appendChild(pre);
+                                    }
+                                }
+                            } else if (output.output_type === 'error') {
+                                const errorDiv = document.createElement('div');
+                                errorDiv.className = 'error-output';
+                                const strong = document.createElement('strong');
+                                strong.textContent = output.ename + ': ' + output.evalue;
+                                errorDiv.appendChild(strong);
+                                if (output.traceback && Array.isArray(output.traceback)) {
+                                    const pre = document.createElement('pre');
+                                    pre.textContent = output.traceback.join('\n');
+                                    errorDiv.appendChild(pre);
+                                }
+                                outputElement.appendChild(errorDiv);
+                            }
+                            outputDiv.appendChild(outputElement);
+                        });
+                    }
+                }
+                // Append outputDiv to cellDiv only if it has content or is a markdown cell
+                if (outputDiv.hasChildNodes() || cell.cell_type === 'markdown') {
+                    cellDiv.appendChild(outputDiv);
+                }
+
+                // "Show/Hide Code" button for code cells with source
+                if (cell.cell_type === 'code' && cell.source && cell.source.length > 0) {
+                    const buttonContainer = document.createElement('div');
+                    buttonContainer.className = 'p-4 border-t border-slate-200 text-right'; 
+
+                    const button = document.createElement('button');
+                    button.textContent = 'Hide Code'; // Default text is "Hide Code"
+                    button.className = 'show-code-button';
+                    button.onclick = () => {
+                        const inputDiv = document.getElementById(`input-${index}`);
+                        if (inputDiv) {
+                            inputDiv.classList.toggle('hidden-code');
+                            // Toggle button text
+                            button.textContent = inputDiv.classList.contains('hidden-code') ? 'Show Code' : 'Hide Code';
+                        }
+                    };
+                    buttonContainer.appendChild(button);
+                    cellDiv.appendChild(buttonContainer);
+                }
+
+                notebookOutputDiv.appendChild(cellDiv);
+            });
+        }
+
+        // --- Copy All Functionality ---
+        copyAllButton.addEventListener('click', () => {
+            let allContent = '';
+            const cells = notebookOutputDiv.querySelectorAll('.cell');
+            cells.forEach(cell => {
+                // Get code input
+                const inputPre = cell.querySelector('.cell-input pre');
+                if (inputPre) {
+                    allContent += '```python\n' + inputPre.textContent + '\n```\n\n';
+                }
+
+                // Get markdown output
+                const markdownOutput = cell.querySelector('.markdown-output');
+                if (markdownOutput) {
+                    // Convert HTML back to markdown for better copy experience
+                    // This is a simplified conversion and might not be perfect for complex HTML
+                    let markdownText = markdownOutput.innerHTML
+                        .replace(/<h1>(.*?)<\/h1>/g, '# $1\n')
+                        .replace(/<h2>(.*?)<\/h2>/g, '## $1\n')
+                        .replace(/<h3>(.*?)<\/h3>/g, '### $1\n')
+                        .replace(/<p>(.*?)<\/p>/g, '$1\n\n')
+                        .replace(/<li>(.*?)<\/li>/g, '- $1\n')
+                        .replace(/<ul>/g, '\n')
+                        .replace(/<\/ul>/g, '\n')
+                        .replace(/<ol>/g, '\n')
+                        .replace(/<\/ol>/g, '\n')
+                        .replace(/<code>(.*?)<\/code>/g, '`$1`')
+                        .replace(/<blockquote>(.*?)<\/blockquote>/g, '> $1\n')
+                        .replace(/<pre><code.*?>(.*?)<\/code><\/pre>/gs, '```\n$1\n```\n'); // Handle code blocks in markdown
+                    allContent += markdownText + '\n';
+                }
+
+                // Get code output (text/plain, stream, error)
+                const outputPre = cell.querySelector('.cell-output pre');
+                if (outputPre && !outputPre.closest('.error-output')) { // Exclude error pre as it's handled separately
+                    allContent += 'Output:\n' + outputPre.textContent + '\n\n';
+                }
+                // Get error output
+                const errorOutput = cell.querySelector('.error-output');
+                if (errorOutput) {
+                    allContent += 'Error:\n' + errorOutput.textContent + '\n\n';
+                }
+                // Note: Image outputs are not copied as text.
+            });
+
+            // Create a temporary textarea to copy content
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = allContent.trim();
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            
+            try {
+                // Use execCommand for broader compatibility in iframes
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showModal('Sabhi content clipboard par copy ho gaya!');
+                } else {
+                    showModal('Copy karne mein asafal raha. Kripya manually copy karein.');
+                }
+            } catch (err) {
+                console.error('Copy failed:', err);
+                showModal('Copy karne mein asafal raha. Kripya manually copy karein.');
+            } finally {
+                document.body.removeChild(tempTextArea);
+            }
+        });
+
+        // --- Download Functionality ---
+        function downloadFile(content, fileName, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        downloadIpynbButton.addEventListener('click', () => {
+            if (currentNotebookContent) {
+                const fileName = 'notebook.ipynb';
+                downloadFile(JSON.stringify(currentNotebookContent, null, 2), fileName, 'application/json');
+                showModal(`"${fileName}" download ho gaya!`);
+            } else {
+                showModal('Pehle ek .ipynb file load karein.');
+            }
+        });
+
+        downloadTxtButton.addEventListener('click', () => {
+            if (currentNotebookContent) {
+                let textContent = '';
+                currentNotebookContent.cells.forEach(cell => {
+                    if (cell.cell_type === 'code' && cell.source) {
+                        textContent += 'CODE:\n' + cell.source.join('') + '\n\n';
+                        if (cell.outputs) {
+                            cell.outputs.forEach(output => {
+                                if (output.output_type === 'stream' && output.text) {
+                                    textContent += 'OUTPUT:\n' + (output.text.join ? output.text.join('') : output.text) + '\n\n';
+                                } else if ((output.output_type === 'execute_result' || output.output_type === 'display_data') && output.data && output.data['text/plain']) {
+                                    textContent += 'OUTPUT:\n' + (output.data['text/plain'].join ? output.data['text/plain'].join('') : output.data['text/plain']) + '\n\n';
+                                } else if (output.output_type === 'error') {
+                                    textContent += 'ERROR:\n' + output.ename + ': ' + output.evalue + '\n';
+                                    if (output.traceback) {
+                                        textContent += output.traceback.join('\n') + '\n\n';
+                                    }
+                                }
+                            });
+                        }
+                    } else if (cell.cell_type === 'markdown' && cell.source) {
+                        textContent += 'MARKDOWN:\n' + cell.source.join('') + '\n\n';
+                    }
+                });
+                const fileName = 'notebook.txt';
+                downloadFile(textContent.trim(), fileName, 'text/plain');
+                showModal(`"${fileName}" download ho gaya!`);
+            } else {
+                showModal('Pehle ek .ipynb file load karein.');
+            }
+        });
+
+        downloadPdfButton.addEventListener('click', async () => {
+            if (!currentNotebookContent) {
+                showModal('Pehle ek .ipynb file load karein.');
+                return;
+            }
+
+            showModal('PDF banaya ja raha hai... Kripya intezaar karein.');
+            
+            // Give some time for the modal to render before starting heavy work
+            await new Promise(resolve => setTimeout(resolve, 50)); 
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('p', 'pt', 'a4'); // Portrait, points, A4 size
+                const margin = 20; // Margin in points
+                const pageHeight = doc.internal.pageSize.height;
+                let y = margin; // Current Y position
+
+                // Temporarily hide the "Show/Hide Code" buttons for cleaner PDF
+                const buttons = document.querySelectorAll('.show-code-button');
+                buttons.forEach(button => button.style.display = 'none');
+                
+                // Temporarily show all hidden code for PDF generation
+                const hiddenCodeDivs = document.querySelectorAll('.hidden-code');
+                hiddenCodeDivs.forEach(div => div.style.display = 'block');
+
+
+                // Capture the entire notebook output div
+                const canvas = await html2canvas(notebookOutputDiv, {
+                    scale: 2, // Increase scale for better resolution
+                    useCORS: true, // Important for images loaded from data URLs
+                    scrollY: -window.scrollY, // Ensure correct scroll position capture
+                    windowWidth: document.documentElement.offsetWidth,
+                    windowHeight: document.documentElement.offsetHeight
+                });
+
+                const imgData = canvas.toDataURL('image/png');
+                const imgWidth = doc.internal.pageSize.width - 2 * margin; // Image width based on page width and margins
+                const imgHeight = (canvas.height * imgWidth) / canvas.width; // Maintain aspect ratio
+
+                let heightLeft = imgHeight;
+                let position = 0;
+
+                doc.addImage(imgData, 'PNG', margin, y, imgWidth, imgHeight);
+                heightLeft -= pageHeight - y;
+
+                while (heightLeft >= 0) {
+                    position = heightLeft - imgHeight;
+                    doc.addPage();
+                    doc.addImage(imgData, 'PNG', margin, position + y, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                }
+
+                doc.save('notebook.pdf');
+                showModal('PDF safaltapoorvak download ho gaya!');
+
+            } catch (error) {
+                console.error('PDF generation failed:', error);
+                showModal('PDF banane mein samasya hui: ' + error.message);
+            } finally {
+                // Restore "Show/Hide Code" buttons and hidden code visibility
+                const buttons = document.querySelectorAll('.show-code-button');
+                buttons.forEach(button => button.style.display = ''); // Restore default display
+                const hiddenCodeDivs = document.querySelectorAll('.hidden-code');
+                hiddenCodeDivs.forEach(div => div.style.display = 'none'); // Hide them again
+            }
+        });
+
+
+        // Inter font family (if different from Tailwind default)
+        document.documentElement.style.fontFamily = "Inter, system-ui, sans-serif";
+
+    </script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Format to PDF Converter</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+        }
+        
+        .supported-formats {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .format-tag {
+            background-color: #3498db;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+        }
+        
+        .upload-area {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .upload-box {
+            border: 2px dashed #bdc3c7;
+            border-radius: 5px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-box:hover {
+            border-color: #3498db;
+            background-color: #f7f9fa;
+        }
+        
+        .upload-icon {
+            font-size: 50px;
+            color: #95a5a6;
+            margin-bottom: 15px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .files-list {
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .file-info-left {
+            flex: 1;
+        }
+        
+        .file-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .file-details {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .file-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .file-status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        .status-ready {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .status-processing {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-completed {
+            background-color: #cce5ff;
+            color: #004085;
+        }
+        
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .remove-btn {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        
+        .remove-btn:hover {
+            background-color: #c0392b;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background-color: #95a5a6;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #7f8c8d;
+        }
+        
+        .btn-success {
+            background-color: #27ae60;
+        }
+        
+        .btn-success:hover {
+            background-color: #229954;
+        }
+        
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .alert-info {
+            background-color: #cce5ff;
+            color: #004085;
+            border: 1px solid #b8daff;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top-color: #3498db;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .status {
+            display: none;
+            margin: 20px 0;
+        }
+        
+        .progress-container {
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #ecf0f1;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: #3498db;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+        
+        .progress-text {
+            text-align: center;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        
+        .merge-options {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin-bottom: 30px;
+            display: none;
+        }
+        
+        .merge-options h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .checkbox-container input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+        
+        .how-it-works {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+        
+        .how-it-works h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        
+        .steps {
+            list-style-position: inside;
+            margin-left: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .steps li {
+            margin-bottom: 10px;
+        }
+        
+        .note {
+            padding: 15px;
+            background-color: #fff3cd;
+            color: #856404;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .file-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .file-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .supported-formats {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Multi-Format to PDF Converter</h1>
+            <p class="subtitle">Convert multiple file formats to PDF easily</p>
+            <div class="supported-formats">
+                <span class="format-tag">.ipynb</span>
+                <span class="format-tag">.py</span>
+                <span class="format-tag">.html</span>
+                <span class="format-tag">.css</span>
+                <span class="format-tag">.js</span>
+                <span class="format-tag">.txt</span>
+                <span class="format-tag">.md</span>
+                <span class="format-tag">.json</span>
+            </div>
+        </header>
+        
+        <div class="upload-area">
+            <div id="uploadBox" class="upload-box">
+                <div class="upload-icon">📁</div>
+                <h3>Drop your files here</h3>
+                <p>Support multiple files and various formats</p>
+                <button type="button" id="selectFileBtn">Select Files</button>
+                <input type="file" id="fileInput" class="file-input" multiple accept=".ipynb,.py,.html,.css,.js,.txt,.md,.json">
+            </div>
+            
+            <div id="filesList" class="files-list">
+                <!-- Files will be dynamically added here -->
+            </div>
+            
+            <div class="action-buttons" id="actionButtons" style="display: none;">
+                <button id="convertAllBtn" disabled>Convert All to PDF</button>
+                <button id="clearAllBtn" class="btn-secondary">Clear All</button>
+            </div>
+        </div>
+
+        <div id="mergeOptions" class="merge-options">
+            <h3>📄 Merge Options</h3>
+            <div class="checkbox-container">
+                <input type="checkbox" id="mergeFiles">
+                <label for="mergeFiles">Merge all files into a single PDF</label>
+            </div>
+            <div class="checkbox-container">
+                <input type="text" id="mergedFileName" placeholder="Enter merged file name (optional)" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 300px;">
+            </div>
+        </div>
+        
+        <div id="progressContainer" class="progress-container">
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+            </div>
+            <div id="progressText" class="progress-text">Processing files...</div>
+        </div>
+        
+        <div id="loadingIndicator" class="loading">
+            <div class="loading-spinner"></div>
+            <p>Processing your files...</p>
+        </div>
+        
+        <div id="statusMessage" class="status alert"></div>
+        
+        <div class="how-it-works">
+            <h2>How It Works</h2>
+            <ol class="steps">
+                <li>Select multiple files of supported formats (.ipynb, .py, .html, .css, .js, .txt, .md, .json)</li>
+                <li>Choose whether to convert each file separately or merge them into one PDF</li>
+                <li>Click "Convert All to PDF" to process your files</li>
+                <li>Download individual PDFs or a merged PDF file</li>
+            </ol>
+            
+            <div class="note">
+                <p><strong>Features:</strong></p>
+                <ul style="margin-top: 10px; margin-left: 20px;">
+                    <li>Support for multiple file formats</li>
+                    <li>Batch processing of multiple files</li>
+                    <li>Option to merge all files into a single PDF</li>
+                    <li>Individual file removal</li>
+                    <li>Progress tracking</li>
+                    <li>Responsive design for mobile devices</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM elements
+        const uploadBox = document.getElementById('uploadBox');
+        const fileInput = document.getElementById('fileInput');
+        const selectFileBtn = document.getElementById('selectFileBtn');
+        const filesList = document.getElementById('filesList');
+        const convertAllBtn = document.getElementById('convertAllBtn');
+        const clearAllBtn = document.getElementById('clearAllBtn');
+        const actionButtons = document.getElementById('actionButtons');
+        const mergeOptions = document.getElementById('mergeOptions');
+        const mergeFiles = document.getElementById('mergeFiles');
+        const mergedFileName = document.getElementById('mergedFileName');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const statusMessage = document.getElementById('statusMessage');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        
+        let uploadedFiles = [];
+        let processedFiles = [];
+        
+        // Event listeners
+        selectFileBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        uploadBox.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadBox.style.borderColor = '#3498db';
+            uploadBox.style.backgroundColor = '#f7f9fa';
+        });
+        
+        uploadBox.addEventListener('dragleave', () => {
+            uploadBox.style.borderColor = '#bdc3c7';
+            uploadBox.style.backgroundColor = '#fff';
+        });
+        
+        uploadBox.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadBox.style.borderColor = '#bdc3c7';
+            uploadBox.style.backgroundColor = '#fff';
+            
+            if (e.dataTransfer.files.length) {
+                handleFileSelection(Array.from(e.dataTransfer.files));
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                handleFileSelection(Array.from(e.target.files));
+            }
+        });
+        
+        convertAllBtn.addEventListener('click', convertAllFiles);
+        clearAllBtn.addEventListener('click', clearAllFiles);
+        
+        // Functions
+        function handleFileSelection(files) {
+            const supportedExtensions = ['.ipynb', '.py', '.html', '.css', '.js', '.txt', '.md', '.json'];
+            const validFiles = files.filter(file => {
+                const extension = '.' + file.name.split('.').pop().toLowerCase();
+                return supportedExtensions.includes(extension);
+            });
+            
+            if (validFiles.length === 0) {
+                showStatus('error', 'Please select valid files. Supported formats: .ipynb, .py, .html, .css, .js, .txt, .md, .json');
+                return;
+            }
+            
+            if (files.length > validFiles.length) {
+                showStatus('info', `${files.length - validFiles.length} unsupported files were skipped.`);
+            }
+            
+            validFiles.forEach(file => {
+                if (!uploadedFiles.find(f => f.name === file.name && f.size === file.size)) {
+                    uploadedFiles.push(file);
+                }
+            });
+            
+            updateFilesList();
+            updateUI();
+        }
+        
+        function updateFilesList() {
+            filesList.innerHTML = '';
+            
+            uploadedFiles.forEach((file, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <div class="file-info-left">
+                        <div class="file-name">${file.name}</div>
+                        <div class="file-details">
+                            Size: ${(file.size / 1024).toFixed(2)} KB | 
+                            Type: ${file.name.split('.').pop().toUpperCase()}
+                        </div>
+                    </div>
+                    <div class="file-actions">
+                        <span class="file-status status-ready">Ready</span>
+                        <button class="remove-btn" onclick="removeFile(${index})">Remove</button>
+                    </div>
+                `;
+                filesList.appendChild(fileItem);
+            });
+        }
+        
+        function removeFile(index) {
+            uploadedFiles.splice(index, 1);
+            updateFilesList();
+            updateUI();
+        }
+        
+        function clearAllFiles() {
+            uploadedFiles = [];
+            processedFiles = [];
+            updateFilesList();
+            updateUI();
+            hideProgress();
+            statusMessage.style.display = 'none';
+        }
+        
+        function updateUI() {
+            if (uploadedFiles.length > 0) {
+                filesList.style.display = 'block';
+                actionButtons.style.display = 'flex';
+                mergeOptions.style.display = 'block';
+                convertAllBtn.disabled = false;
+            } else {
+                filesList.style.display = 'none';
+                actionButtons.style.display = 'none';
+                mergeOptions.style.display = 'none';
+                convertAllBtn.disabled = true;
+            }
+        }
+        
+        function showStatus(type, message) {
+            statusMessage.className = `status alert alert-${type}`;
+            statusMessage.textContent = message;
+            statusMessage.style.display = 'block';
+        }
+        
+        function showProgress(current, total, message) {
+            progressContainer.style.display = 'block';
+            const percentage = (current / total) * 100;
+            progressFill.style.width = percentage + '%';
+            progressText.textContent = message || `Processing ${current} of ${total} files...`;
+        }
+        
+        function hideProgress() {
+            progressContainer.style.display = 'none';
+        }
+        
+        async function convertAllFiles() {
+            if (uploadedFiles.length === 0) return;
+            
+            loadingIndicator.style.display = 'block';
+            showStatus('info', 'Starting conversion process...');
+            processedFiles = [];
+            
+            // Update file statuses to processing
+            const fileItems = filesList.querySelectorAll('.file-status');
+            fileItems.forEach(status => {
+                status.className = 'file-status status-processing';
+                status.textContent = 'Processing';
+            });
+            
+            try {
+                for (let i = 0; i < uploadedFiles.length; i++) {
+                    showProgress(i + 1, uploadedFiles.length, `Processing ${uploadedFiles[i].name}...`);
+                    
+                    const convertedFile = await convertSingleFile(uploadedFiles[i], i);
+                    processedFiles.push(convertedFile);
+                    
+                    // Update individual file status
+                    fileItems[i].className = 'file-status status-completed';
+                    fileItems[i].textContent = 'Completed';
+                    
+                    // Add small delay for better UX
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+                
+                hideProgress();
+                loadingIndicator.style.display = 'none';
+                
+                if (mergeFiles.checked) {
+                    await mergeAndDownloadPDFs();
+                } else {
+                    downloadIndividualPDFs();
+                }
+                
+                showStatus('success', `Successfully converted ${uploadedFiles.length} file(s) to PDF!`);
+                
+            } catch (error) {
+                hideProgress();
+                loadingIndicator.style.display = 'none';
+                showStatus('error', 'Error during conversion: ' + error.message);
+                
+                // Reset file statuses on error
+                fileItems.forEach(status => {
+                    status.className = 'file-status status-error';
+                    status.textContent = 'Error';
+                });
+            }
+        }
+        
+        function convertSingleFile(file, index) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                
+                reader.onload = (event) => {
+                    try {
+                        let htmlContent = '';
+                        const fileName = file.name;
+                        const fileExtension = fileName.split('.').pop().toLowerCase();
+                        const content = event.target.result;
+                        
+                        // Generate HTML based on file type
+                        switch (fileExtension) {
+                            case 'ipynb':
+                                htmlContent = convertNotebookToHTML(JSON.parse(content), fileName);
+                                break;
+                            case 'py':
+                                htmlContent = convertCodeToHTML(content, fileName, 'Python');
+                                break;
+                            case 'js':
+                                htmlContent = convertCodeToHTML(content, fileName, 'JavaScript');
+                                break;
+                            case 'css':
+                                htmlContent = convertCodeToHTML(content, fileName, 'CSS');
+                                break;
+                            case 'html':
+                                htmlContent = convertHTMLToHTML(content, fileName);
+                                break;
+                            case 'md':
+                                htmlContent = convertMarkdownToHTML(content, fileName);
+                                break;
+                            case 'json':
+                                htmlContent = convertJSONToHTML(content, fileName);
+                                break;
+                            case 'txt':
+                            default:
+                                htmlContent = convertTextToHTML(content, fileName);
+                                break;
+                        }
+                        
+                        resolve({
+                            name: fileName.replace(/\.[^/.]+$/, "") + '.html',
+                            content: htmlContent,
+                            originalName: fileName
+                        });
+                        
+                    } catch (error) {
+                        reject(new Error(`Error processing ${file.name}: ${error.message}`));
+                    }
+                };
+                
+                reader.onerror = () => {
+                    reject(new Error(`Error reading ${file.name}`));
+                };
+                
+                reader.readAsText(file);
+            });
+        }
+        
+        function convertNotebookToHTML(notebook, fileName) {
+            let html = createBaseHTML(fileName, 'Jupyter Notebook');
+            
+            if (notebook.cells) {
+                notebook.cells.forEach(cell => {
+                    if (cell.cell_type === 'code') {
+                        html += '<div class="cell code-cell">';
+                        html += '<div class="cell-header">Code:</div>';
+                        if (cell.source) {
+                            const source = Array.isArray(cell.source) ? cell.source.join('') : cell.source;
+                            html += `<pre class="code-content">${escapeHtml(source)}</pre>`;
+                        }
+                        
+                        if (cell.outputs && cell.outputs.length > 0) {
+                            html += '<div class="output-section"><div class="cell-header">Output:</div>';
+                            cell.outputs.forEach(output => {
+                                if (output.text) {
+                                    const text = Array.isArray(output.text) ? output.text.join('') : output.text;
+                                    html += `<pre class="output-content">${escapeHtml(text)}</pre>`;
+                                }
+                            });
+                            html += '</div>';
+                        }
+                        html += '</div>';
+                    } else if (cell.cell_type === 'markdown') {
+                        html += '<div class="cell markdown-cell">';
+                        if (cell.source) {
+                            const source = Array.isArray(cell.source) ? cell.source.join('') : cell.source;
+                            html += `<div class="markdown-content">${escapeHtml(source)}</div>`;
+                        }
+                        html += '</div>';
+                    }
+                });
+            }
+            
+            return html + '</body></html>';
+        }
+        
+        function convertCodeToHTML(content, fileName, language) {
+            let html = createBaseHTML(fileName, language + ' Code');
+            html += `<div class="code-file">
+                <div class="file-header">${language} File: ${fileName}</div>
+                <pre class="code-content">${escapeHtml(content)}</pre>
+            </div>`;
+            return html + '</body></html>';
+        }
+        
+        function convertHTMLToHTML(content, fileName) {
+            let html = createBaseHTML(fileName, 'HTML Document');
+            html += `<div class="html-file">
+                <div class="file-header">HTML File: ${fileName}</div>
+                <pre class="code-content">${escapeHtml(content)}</pre>
+            </div>`;
+            return html + '</body></html>';
+        }
+        
+        function convertMarkdownToHTML(content, fileName) {
+            let html = createBaseHTML(fileName, 'Markdown Document');
+            html += `<div class="markdown-file">
+                <div class="file-header">Markdown File: ${fileName}</div>
+                <div class="markdown-content">${escapeHtml(content)}</div>
+            </div>`;
+            return html + '</body></html>';
+        }
+        
+        function convertJSONToHTML(content, fileName) {
+            let html = createBaseHTML(fileName, 'JSON Document');
+            let formattedJSON;
+            try {
+                const jsonObj = JSON.parse(content);
+                formattedJSON = JSON.stringify(jsonObj, null, 2);
+            } catch (e) {
+                formattedJSON = content;
+            }
+            html += `<div class="json-file">
+                <div class="file-header">JSON File: ${fileName}</div>
+                <pre class="code-content">${escapeHtml(formattedJSON)}</pre>
+            </div>`;
+            return html + '</body></html>';
+        }
+        
+        function convertTextToHTML(content, fileName) {
+            let html = createBaseHTML(fileName, 'Text Document');
+            html += `<div class="text-file">
+                <div class="file-header">Text File: ${fileName}</div>
+                <pre class="text-content">${escapeHtml(content)}</pre>
+            </div>`;
+            return html + '</body></html>';
+        }
+        
+        function createBaseHTML(fileName, fileType) {
+            return `<!DOCTYPE html>
+            <html>
+            <head>
+                <title>${fileName}</title>
+                <style>
+                    body { 
+                        font-family: Arial, sans-serif; 
+                        margin: 40px; 
+                        line-height: 1.6;
+                        color: #333;
+                    }
+                    .code-file, .html-file, .markdown-file, .json-file, .text-file {
+                        border-left: 4px solid #3498db;
+                        padding-left: 20px;
+                        margin-bottom: 30px;
+                    }
+                </style>
+            </head>
+            <body>
+                <h1 class="document-title">${fileName}</h1>
+                <p class="document-type">${fileType}</p>`;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function downloadIndividualPDFs() {
+            processedFiles.forEach(file => {
+                const blob = new Blob([file.content], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = file.name;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+        }
+        
+        async function mergeAndDownloadPDFs() {
+            const mergedFileName = document.getElementById('mergedFileName').value.trim() || 'merged_files';
+            
+            let mergedHTML = `<!DOCTYPE html>
+            <html>
+            <head>
+                <title>${mergedFileName}</title>
+                <style>
+                    body { 
+                        font-family: Arial, sans-serif; 
+                        margin: 40px; 
+                        line-height: 1.6;
+                        color: #333;
+                    }
+                    .merged-title { 
+                        font-size: 32px; 
+                        margin-bottom: 20px; 
+                        color: #2c3e50;
+                        text-align: center;
+                        border-bottom: 3px solid #3498db;
+                        padding-bottom: 15px;
+                    }
+                    .file-section {
+                        margin-bottom: 50px;
+                        padding: 30px;
+                        border: 2px solid #ecf0f1;
+                        border-radius: 10px;
+                        page-break-before: always;
+                    }
+                    .file-section:first-of-type {
+                        page-break-before: auto;
+                    }
+                    .file-title {
+                        font-size: 24px;
+                        color: #e74c3c;
+                        margin-bottom: 15px;
+                        padding: 10px;
+                        background-color: #f8f9fa;
+                        border-left: 5px solid #e74c3c;
+                    }
+                    .cell { 
+                        margin-bottom: 30px; 
+                        border-left: 4px solid #3498db; 
+                        padding-left: 20px; 
+                    }
+                    .code-cell {
+                        background-color: #f8f9fa;
+                        padding: 20px;
+                        border-radius: 5px;
+                        border-left: 4px solid #e74c3c;
+                    }
+                    .markdown-cell {
+                        background-color: #ffffff;
+                        padding: 15px;
+                        border-left: 4px solid #27ae60;
+                    }
+                    .cell-header {
+                        font-weight: bold;
+                        color: #2c3e50;
+                        margin-bottom: 10px;
+                        font-size: 14px;
+                        text-transform: uppercase;
+                    }
+                    .code-content { 
+                        font-family: 'Courier New', monospace; 
+                        white-space: pre-wrap; 
+                        background-color: #2c3e50;
+                        color: #ecf0f1;
+                        padding: 15px;
+                        border-radius: 4px;
+                        overflow-x: auto;
+                        margin: 0;
+                    }
+                    .output-section {
+                        margin-top: 15px;
+                        border-top: 1px solid #bdc3c7;
+                        padding-top: 15px;
+                    }
+                    .output-content {
+                        font-family: 'Courier New', monospace;
+                        background-color: #ecf0f1;
+                        color: #2c3e50;
+                        padding: 10px;
+                        border-radius: 4px;
+                        margin: 0;
+                        white-space: pre-wrap;
+                    }
+                    .markdown-content {
+                        white-space: pre-wrap;
+                        line-height: 1.8;
+                    }
+                    .text-content {
+                        white-space: pre-wrap;
+                        font-family: 'Courier New', monospace;
+                        background-color: #f8f9fa;
+                        padding: 15px;
+                        border-radius: 4px;
+                        margin: 0;
+                    }
+                    .file-header {
+                        font-size: 18px;
+                        font-weight: bold;
+                        color: #2c3e50;
+                        margin-bottom: 15px;
+                        padding: 10px;
+                        background-color: #ecf0f1;
+                        border-radius: 4px;
+                    }
+                    .code-file, .html-file, .markdown-file, .json-file, .text-file {
+                        border-left: 4px solid #3498db;
+                        padding-left: 20px;
+                        margin-bottom: 30px;
+                    }
+                    .table-of-contents {
+                        background-color: #f8f9fa;
+                        padding: 20px;
+                        border-radius: 10px;
+                        margin-bottom: 40px;
+                    }
+                    .toc-title {
+                        font-size: 20px;
+                        font-weight: bold;
+                        margin-bottom: 15px;
+                        color: #2c3e50;
+                    }
+                    .toc-item {
+                        margin-bottom: 5px;
+                        padding-left: 10px;
+                    }
+                    @media print {
+                        .file-section {
+                            page-break-before: always;
+                        }
+                        .file-section:first-of-type {
+                            page-break-before: auto;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                <h1 class="merged-title">📄 ${mergedFileName}</h1>
+                <div class="table-of-contents">
+                    <div class="toc-title">📋 Table of Contents</div>`;
+            
+            // Add table of contents
+            processedFiles.forEach((file, index) => {
+                mergedHTML += `<div class="toc-item">${index + 1}. ${file.originalName}</div>`;
+            });
+            
+            mergedHTML += `</div>`;
+            
+            // Add each file's content
+            processedFiles.forEach((file, index) => {
+                // Extract content between body tags
+                const bodyStart = file.content.indexOf('<body>') + 6;
+                const bodyEnd = file.content.indexOf('</body>');
+                const bodyContent = file.content.substring(bodyStart, bodyEnd);
+                
+                mergedHTML += `
+                <div class="file-section">
+                    <h2 class="file-title">📄 ${file.originalName}</h2>
+                    ${bodyContent}
+                </div>`;
+            });
+            
+            mergedHTML += `</body></html>`;
+            
+            // Download merged file
+            const blob = new Blob([mergedHTML], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${mergedFileName}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        // Initialize merge filename input behavior
+        mergeFiles.addEventListener('change', function() {
+            mergedFileName.style.display = this.checked ? 'block' : 'none';
+        });
+        
+        // Add some sample content on page load for demo
+        window.addEventListener('load', function() {
+            showStatus('info', 'Ready to convert files! Select multiple files to get started.');
+        });
+    </script>
+</body>
+</html>document-title { 
+                        font-size: 28px; 
+                        margin-bottom: 10px; 
+                        color: #2c3e50;
+                        border-bottom: 2px solid #3498db;
+                        padding-bottom: 10px;
+                    }
+                    .document-type {
+                        font-size: 16px;
+                        color: #7f8c8d;
+                        margin-bottom: 30px;
+                    }
+                    .cell { 
+                        margin-bottom: 30px; 
+                        border-left: 4px solid #3498db; 
+                        padding-left: 20px; 
+                    }
+                    .code-cell {
+                        background-color: #f8f9fa;
+                        padding: 20px;
+                        border-radius: 5px;
+                        border-left: 4px solid #e74c3c;
+                    }
+                    .markdown-cell {
+                        background-color: #ffffff;
+                        padding: 15px;
+                        border-left: 4px solid #27ae60;
+                    }
+                    .cell-header {
+                        font-weight: bold;
+                        color: #2c3e50;
+                        margin-bottom: 10px;
+                        font-size: 14px;
+                        text-transform: uppercase;
+                    }
+                    .code-content { 
+                        font-family: 'Courier New', monospace; 
+                        white-space: pre-wrap; 
+                        background-color: #2c3e50;
+                        color: #ecf0f1;
+                        padding: 15px;
+                        border-radius: 4px;
+                        overflow-x: auto;
+                        margin: 0;
+                    }
+                    .output-section {
+                        margin-top: 15px;
+                        border-top: 1px solid #bdc3c7;
+                        padding-top: 15px;
+                    }
+                    .output-content {
+                        font-family: 'Courier New', monospace;
+                        background-color: #ecf0f1;
+                        color: #2c3e50;
+                        padding: 10px;
+                        border-radius: 4px;
+                        margin: 0;
+                        white-space: pre-wrap;
+                    }
+                    .markdown-content {
+                        white-space: pre-wrap;
+                        line-height: 1.8;
+                    }
+                    .text-content {
+                        white-space: pre-wrap;
+                        font-family: 'Courier New', monospace;
+                        background-color: #f8f9fa;
+                        padding: 15px;
+                        border-radius: 4px;
+                        margin: 0;
+                    }
+                    .file-header {
+                        font-size: 18px;
+                        font-weight: bold;
+                        color: #2c3e50;
+                        margin-bottom: 15px;
+                        padding: 10px;
+                        background-color: #ecf0f1;
+                        border-radius: 4px;
+                    }
+                    .
